@@ -1,11 +1,11 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.18)
 project(FBX2glTF)
 
 set(typical_usage_str
   "Example usage:\n\
-  > mkdir -p build_debug\n\
-  > conan install . -i build_debug -s build_type=Debug -e FBXSDK_SDKS=/home/zell/FBXSDK\n\
-  > conan build . -bf build_debug")
+  > mkdir build\n\
+  > cd build && cmake .. \n\
+  > make && make install")
 
 if ("${CMAKE_CURRENT_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
   message(FATAL_ERROR
@@ -18,7 +18,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
 include(ExternalProject)
 
 # FBX
-foreach (FBXSDK_VERSION "2019.2")
+foreach (FBXSDK_VERSION "2020.3")
   find_package(FBX)
   if (FBXSDK_FOUND)
     break()
@@ -33,23 +33,18 @@ if (NOT FBXSDK_FOUND)
   )
 endif()
 
-if(NOT EXISTS "${CMAKE_BINARY_DIR}/conan_paths.cmake")
-  message(FATAL_ERROR
-    "The Conan package manager must run ('install') first. ${typical_usage_str}")
-endif()
-include("${CMAKE_BINARY_DIR}/conan_paths.cmake")
-
 set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
 find_package(Threads REQUIRED)
 
 list(INSERT CMAKE_MODULE_PATH 0 "${CMAKE_BINARY_DIR}")
 
-# stuff we get from Conan
-find_package(boost_filesystem MODULE REQUIRED)
-find_package(boost_optional MODULE REQUIRED)
-find_package(libxml2 MODULE REQUIRED)
-find_package(zlib MODULE REQUIRED)
-find_package(fmt MODULE REQUIRED)
+# stuff we get from conda
+# find_package(boost_filesystem MODULE REQUIRED)
+# find_package(boost_optional MODULE REQUIRED)
+find_package(Boost 1.69 REQUIRED COMPONENTS filesystem)
+find_package(LibXml2 REQUIRED)
+find_package(ZLIB REQUIRED)
+find_package(fmt REQUIRED)
 
 # create a compilation database for e.g. clang-tidy
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -57,7 +52,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # DRACO
 ExternalProject_Add(Draco
   GIT_REPOSITORY https://github.com/google/draco
-  GIT_TAG 1.3.4
+  GIT_TAG 1.5.3
   PREFIX draco
   INSTALL_DIR
   CMAKE_ARGS
@@ -68,7 +63,7 @@ set(DRACO_INCLUDE_DIR "${CMAKE_BINARY_DIR}/draco/include")
 if (WIN32)
    set(DRACO_LIB "${CMAKE_BINARY_DIR}/draco/lib/dracoenc.lib")
 else()
-   set(DRACO_LIB "${CMAKE_BINARY_DIR}/draco/lib/libdracoenc.a")
+   set(DRACO_LIB "${CMAKE_BINARY_DIR}/draco/lib/libdraco.a")
 endif()
 
 # MATHFU
@@ -201,14 +196,13 @@ endif()
 
 target_link_libraries(libFBX2glTF
   ${FRAMEWORKS}
-  boost_filesystem::boost_filesystem
-  boost_optional::boost_optional
+  ${Boost_LIBRARIES}
   ${DRACO_LIB}
   optimized ${FBXSDK_LIBRARY}
   debug ${FBXSDK_LIBRARY_DEBUG}
   fmt::fmt
-  libxml2::libxml2
-  zlib::zlib
+  ${LIBXML2_LIBRARIES}
+  ZLIB::ZLIB
   ${CMAKE_DL_LIBS}
   ${CMAKE_THREAD_LIBS_INIT}
 )
@@ -217,8 +211,8 @@ if (APPLE)
  find_package(Iconv MODULE REQUIRED)
  target_link_libraries(libFBX2glTF Iconv)
 else()
- find_package(libiconv MODULE REQUIRED)
- target_link_libraries(libFBX2glTF libiconv::libiconv)
+ find_package(Iconv REQUIRED)
+ target_link_libraries(libFBX2glTF ${Iconv_LIBRARIES})
 endif()
 
 target_include_directories(libFBX2glTF PUBLIC
