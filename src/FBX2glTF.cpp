@@ -13,12 +13,15 @@
 #include <vector>
 
 #include <CLI11.hpp>
+#include <pybind11/pybind11.h>
 
 #include "FBX2glTF.h"
 #include "fbx/Fbx2Raw.hpp"
 #include "gltf/Raw2Gltf.hpp"
 #include "utils/File_Utils.hpp"
 #include "utils/String_Utils.hpp"
+
+namespace py = pybind11;
 
 bool verboseOutput = false;
 
@@ -391,4 +394,8 @@ int main(int argc, char* argv[]) {
 
   delete data_render_model;
   return 0;
+}
+
+PYBIND11_MODULE(fbx2gltf, m) {
+  m.attr("verboseOutput") = verboseOutput;
 }
