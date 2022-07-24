@@ -18,6 +18,29 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
 include(ExternalProject)
 
 option(BUILD_SHARED_LIBS "Build shared libraries" ON)
+option(BUILD_PYTHON_LIBS "Build Python libraries" ON)
+
+# https://blog.kitware.com/cmake-and-the-default-build-type/
+if(NOT CMAKE_CONFIGURATION_TYPES)
+  if(NOT CMAKE_BUILD_TYPE)
+    message(STATUS "Setting build type to Release as none was specified.")
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
+    # Set the possible values of build type for cmake-gui.
+    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS
+      "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
+  endif()
+  message(STATUS "CMAKE_BUILD_TYPE is set to ${CMAKE_BUILD_TYPE}.")
+endif()
+
+message(STATUS "----------------------------------------")
+message(STATUS "BUILD_SHARED_LIBS: ${BUILD_SHARED_LIBS}")
+message(STATUS "BUILD_PYTHON_LIBS: ${BUILD_PYTHON_LIBS}")
+message(STATUS "")
+message(STATUS "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
+message(STATUS "CMAKE_INSTALL_PREFIX: ${CMAKE_INSTALL_PREFIX}")
+message(STATUS "CMAKE_PREFIX_PATH: ${CMAKE_PREFIX_PATH}")
+message(STATUS "----------------------------------------")
+
 set(CMAKE_CORE_BUILD_FLAGS
   -DCMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}
   -DCMAKE_INCLUDE_PATH=${CMAKE_INCLUDE_PATH}
@@ -50,9 +73,7 @@ find_package(Threads REQUIRED)
 
 list(INSERT CMAKE_MODULE_PATH 0 "${CMAKE_BINARY_DIR}")
 
-# stuff we get from conda
-# find_package(boost_filesystem MODULE REQUIRED)
-# find_package(boost_optional MODULE REQUIRED)
+# Libraries we get from conda
 find_package(Boost 1.69 REQUIRED COMPONENTS filesystem)
 find_package(LibXml2 REQUIRED)
 find_package(ZLIB REQUIRED)
@@ -60,6 +81,11 @@ find_package(fmt REQUIRED)
 find_package(PythonLibs REQUIRED)
 find_package(Python 3.6 COMPONENTS Interpreter Development REQUIRED)
 find_package(pybind11 CONFIG REQUIRED)
+if (APPLE)
+  find_package(Iconv MODULE REQUIRED)
+else ()
+  find_package(Iconv REQUIRED)
+endif ()
 
 # create a compilation database for e.g. clang-tidy
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -225,10 +251,8 @@ target_link_libraries(libFBX2glTF PUBLIC
   )
 
 if (APPLE)
-  find_package(Iconv MODULE REQUIRED)
   target_link_libraries(libFBX2glTF PUBLIC Iconv)
 else ()
-  find_package(Iconv REQUIRED)
   target_link_libraries(libFBX2glTF PUBLIC ${Iconv_LIBRARIES})
 endif ()
 
@@ -252,13 +276,55 @@ target_include_directories(appFBX2glTF PUBLIC
   )
 target_link_libraries(appFBX2glTF PUBLIC libFBX2glTF)
 
-pybind11_add_module(fbx2gltf src/FBX2glTF.cpp)
-target_include_directories(fbx2gltf PUBLIC
-  "third_party/CLI11"
-  )
-target_link_libraries(fbx2gltf PUBLIC libFBX2glTF)
+if (BUILD_PYTHON_LIBS)
+  pybind11_add_module(PyFBX2glTF src/FBX2glTF.cpp ${LIB_SOURCE_FILES})
 
-install(TARGETS libFBX2glTF appFBX2glTF
+  add_dependencies(PyFBX2glTF
+    Draco
+    MathFu
+    FiFoMap
+    CPPCodec
+    )
+
+  target_link_libraries(PyFBX2glTF PUBLIC
+    ${FRAMEWORKS}
+    ${Boost_LIBRARIES}
+    ${DRACO_LIB}
+    optimized ${FBXSDK_LIBRARY}
+    debug ${FBXSDK_LIBRARY_DEBUG}
+    fmt::fmt
+    ${LIBXML2_LIBRARIES}
+    ZLIB::ZLIB
+    ${PYTHON_LIBRARIES}
+    ${CMAKE_DL_LIBS}
+    ${CMAKE_THREAD_LIBS_INIT}
+    )
+
+  if (APPLE)
+    target_link_libraries(PyFBX2glTF PUBLIC Iconv)
+  else ()
+    target_link_libraries(PyFBX2glTF PUBLIC ${Iconv_LIBRARIES})
+  endif ()
+
+  target_include_directories(PyFBX2glTF PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    "third_party/CLI11"
+    )
+
+  target_include_directories(PyFBX2glTF PUBLIC
+    "third_party/stb"
+    "third_party/json"
+    ${FBXSDK_INCLUDE_DIR}
+    ${DRACO_INCLUDE_DIR}
+    ${MATHFU_INCLUDE_DIRS}
+    ${FIFO_MAP_INCLUDE_DIR}
+    ${CPPCODEC_INCLUDE_DIR}
+    ${PYTHON_INCLUDE_DIRS}
+    )
+endif()
+
+install(TARGETS libFBX2glTF appFBX2glTF PyFBX2glTF
   RUNTIME DESTINATION bin
   ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
   )

@@ -396,6 +396,6 @@ int main(int argc, char* argv[]) {
   return 0;
 }
 
-PYBIND11_MODULE(fbx2gltf, m) {
+PYBIND11_MODULE(PyFBX2glTF, m) {
   m.attr("verboseOutput") = verboseOutput;
 }
