@@ -95,17 +95,17 @@ ExternalProject_Add(Draco
   GIT_REPOSITORY https://github.com/google/draco
   GIT_TAG 1.5.3
   PREFIX draco
-  INSTALL_DIR
+  INSTALL_DIR ${CMAKE_INSTALL_PREFIX}
   CMAKE_ARGS
   ${CMAKE_CORE_BUILD_FLAGS}
   -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
   -DBUILD_FOR_GLTF=1
   )
-set(DRACO_INCLUDE_DIR "${CMAKE_BINARY_DIR}/draco/include")
+set(DRACO_INCLUDE_DIR "${CMAKE_INSTALL_PREFIX}/include")
 if (WIN32)
-  set(DRACO_LIB "${CMAKE_BINARY_DIR}/draco/lib/dracoenc.lib")
+  set(DRACO_LIB "${CMAKE_INSTALL_PREFIX}/lib/dracoenc.lib")
 else ()
-  set(DRACO_LIB "${CMAKE_BINARY_DIR}/draco/lib/libdraco.so")
+  set(DRACO_LIB "${CMAKE_INSTALL_PREFIX}/lib/libdraco.so")
 endif ()
 
 # MATHFU
